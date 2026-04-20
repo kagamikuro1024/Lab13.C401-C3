@@ -16,6 +16,7 @@ export interface ChatResponse {
   content: string;
   cost: number;
   remaining_budget: number;
+  correlation_id?: string;
   warning?: string;
 }
 
@@ -36,7 +37,7 @@ export interface HealthResponse {
 
 export const chatApi = {
   sendMessage: (data: ChatMessage) => api.post<ChatResponse>('/chat', data),
-  recordFeedback: (data: { type: 'helpful' | 'unhelpful' | 'escalated' }) => 
+  recordFeedback: (data: { type: 'helpful' | 'unhelpful' | 'escalated', target_id?: string, answer_content?: string }) => 
     api.post('/feedback', data),
   escalate: (data: Record<string, any>) => api.post('/escalate', data),
 };

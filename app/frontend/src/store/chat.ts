@@ -7,6 +7,7 @@ export interface Message {
   timestamp: Date;
   cost?: number;
   warning?: string;
+  correlation_id?: string;
 }
 
 export interface ChatStore {
@@ -17,7 +18,7 @@ export interface ChatStore {
   darkMode: boolean;
   
   setUserId: (id: string) => void;
-  addMessage: (role: 'user' | 'assistant', content: string, cost?: number, warning?: string) => void;
+  addMessage: (role: 'user' | 'assistant', content: string, cost?: number, warning?: string, correlation_id?: string) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearMessages: () => void;
@@ -33,7 +34,7 @@ export const useChatStore = create<ChatStore>((set) => ({
   
   setUserId: (id) => set({ userId: id }),
   
-  addMessage: (role, content, cost, warning) => set((state) => ({
+  addMessage: (role, content, cost, warning, correlation_id) => set((state) => ({
     messages: [
       ...state.messages,
       {
@@ -43,6 +44,7 @@ export const useChatStore = create<ChatStore>((set) => ({
         timestamp: new Date(),
         cost,
         warning,
+        correlation_id,
       },
     ],
   })),

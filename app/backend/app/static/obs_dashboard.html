@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TA Chatbot | Observability ULTIMATE v2.4</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --bg-color: #020617;
+            --card-bg: rgba(15, 23, 42, 0.7);
+            --accent-primary: #38bdf8;
+            --accent-secondary: #818cf8;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --success: #10b981;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-primary); min-height: 100vh; padding: 1.5rem; overflow-x: hidden; }
+        
+        /* Ambient Background Shadows */
+        body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at 0% 0%, rgba(56, 189, 248, 0.08) 0%, transparent 50%), radial-gradient(circle at 100% 100%, rgba(129, 140, 248, 0.08) 0%, transparent 50%); z-index: -1; }
+
+        .container { max-width: 1400px; margin: 0 auto; }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;
+            backdrop-filter: blur(20px); padding: 1rem 1.5rem; border-radius: 1.25rem;
+            background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .logo h1 { font-size: 1.5rem; font-weight: 600; background: linear-gradient(to right, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* Alert System */
+        #alert-container { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 2rem; }
+        .alert-card {
+            background: rgba(239, 68, 68, 0.1); border-left: 4px solid var(--error);
+            padding: 1rem 1.5rem; border-radius: 0.75rem; display: flex; justify-content: space-between; align-items: center;
+            backdrop-filter: blur(10px); animation: fadeIn 0.4s ease;
+        }
+        .alert-card.warning { background: rgba(245, 158, 11, 0.1); border-left-color: var(--warning); }
+        .alert-card a { color: var(--accent-primary); text-decoration: none; font-weight: 600; font-size: 0.85rem; padding: 0.5rem 1rem; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 0.5rem; transition: all 0.2s; }
+        .alert-card a:hover { background: rgba(56, 189, 248, 0.1); }
+
+        /* 6-Panel Stats Grid */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-box { background: var(--card-bg); padding: 1.5rem; border-radius: 1.25rem; border: 1px solid rgba(255, 255, 255, 0.05); position: relative; transition: transform 0.2s; }
+        .stat-box:hover { transform: translateY(-3px); border-color: rgba(56, 189, 248, 0.3); }
+        .stat-label { color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+        .stat-value { font-size: 2rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .stat-trend { font-size: 0.7rem; margin-top: 0.5rem; color: var(--text-secondary); }
+
+        /* Bottom Layout: Transactions & Audit Log */
+        .bottom-grid { display: grid; grid-template-columns: 2fr 1.2fr; gap: 1.5rem; margin-top: 1.5rem; }
+        .panel { background: var(--card-bg); border-radius: 1.25rem; border: 1px solid rgba(255, 255, 255, 0.05); padding: 1.5rem; overflow: hidden; }
+        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.25rem; }
+        .panel-title { font-size: 1rem; font-weight: 600; display: flex; align-items: center; gap: 0.5rem; }
+
+        /* Transaction Table */
+        .table-scroll { max-height: 400px; overflow-y: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 0.75rem; color: var(--text-secondary); font-size: 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); position: sticky; top: 0; background: #0f172a; z-index: 1; }
+        td { padding: 0.75rem; border-bottom: 1px solid rgba(255, 255, 255, 0.05); font-size: 0.85rem; cursor: pointer; }
+        tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+        /* Audit Stream (Terminal Style) */
+        .audit-stream { background: #000; border-radius: 0.75rem; height: 350px; overflow-y: auto; padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; border: 1px solid rgba(255, 255, 255, 0.1); }
+        .audit-line { margin-bottom: 0.5rem; display: flex; gap: 0.75rem; border-left: 2px solid #333; padding-left: 0.5rem; }
+        .audit-ts { color: #555; }
+        .audit-event { color: var(--accent-primary); }
+        .audit-level-error { color: var(--error); }
+        .audit-level-info { color: var(--success); }
+
+        .tag { padding: 0.2rem 0.6rem; border-radius: 0.5rem; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+        .tag-success { background: rgba(16, 185, 129, 0.1); color: var(--success); }
+        .tag-error { background: rgba(239, 68, 68, 0.1); color: var(--error); }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .live-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; box-shadow: 0 0 10px var(--success); animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.5; } 100% { transform: scale(1); opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo"><h1>AI TA | Ultimate Observability</h1></div>
+            <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary);">
+                <div class="live-dot"></div> MONITORING LIVE • v2.4
+            </div>
+        </header>
+
+        <!-- Dynamic Alerts -->
+        <div id="alert-container"></div>
+
+        <!-- 6 Core Panels -->
+        <div class="stats-grid">
+            <div class="stat-box">
+                <div class="stat-label"><i data-lucide="zap"></i> Traffics</div>
+                <div class="stat-value" id="s-req">0</div>
+                <div class="stat-trend" id="s-req-sub">Requests volume</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label"><i data-lucide="clock"></i> Latency P90</div>
+                <div class="stat-value" id="s-lat">0<span style="font-size: 0.9rem; margin-left: 2px">ms</span></div>
+                <div class="stat-trend" style="color: var(--error)">Threshold: 2000ms</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label"><i data-lucide="shield-alert"></i> Error Rate</div>
+                <div class="stat-value" id="s-err">0%</div>
+                <div class="stat-trend">Success ratio 100.0%</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label"><i data-lucide="user-plus"></i> Escalated</div>
+                <div class="stat-value" id="s-esc">0</div>
+                <div class="stat-trend">TA Human Required</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label"><i data-lucide="cpu"></i> Tokens (I/O)</div>
+                <div id="s-tok" style="font-size: 1.25rem; font-weight: 600; margin-top: 0.5rem;">0 / 0</div>
+                <div class="stat-trend">Usage distribution</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-label"><i data-lucide="dollar-sign"></i> Budget Burn</div>
+                <div class="stat-value" id="s-cost" style="color: var(--success)">$0.00</div>
+                <div class="stat-trend">Max Daily: $10.00</div>
+            </div>
+        </div>
+
+        <div class="bottom-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title"><i data-lucide="list"></i> Recent Transactions</div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary)">Click for Trace Details</div>
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead><tr><th>Time</th><th>Input Message</th><th>ID</th><th>Latency</th><th>Status</th></tr></thead>
+                        <tbody id="t-body"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title"><i data-lucide="terminal"></i> Live Audit Stream</div>
+                    <i data-lucide="scroll-text" style="color: var(--text-secondary); width: 16px"></i>
+                </div>
+                <div class="audit-stream" id="audit-stream">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detail v2.4 -->
+    <div class="modal" id="modal-overlay">
+        <div class="modal-content">
+            <div style="position: absolute; top: 1.5rem; right: 1.5rem; cursor: pointer; color: var(--text-secondary);" onclick="closeModal()"><i data-lucide="x"></i></div>
+            <h2 style="margin-bottom: 2rem; font-weight: 600; color: var(--accent-primary)">Transaction Trace Detail</h2>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+                <div>
+                    <div style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.5rem;">Correlation ID</div>
+                    <div style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 0.5rem; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;" id="modal-id"></div>
+                </div>
+                <div>
+                    <div style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.5rem;">Timestamp</div>
+                    <div style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 0.5rem; font-size: 0.85rem;" id="modal-ts"></div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <div style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.5rem;">Input Context</div>
+                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 0.75rem; border-left: 4px solid var(--accent-primary); line-height: 1.5;" id="modal-input"></div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <div style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.5rem;">AI Response</div>
+                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 0.75rem; border-left: 4px solid var(--success); line-height: 1.5;" id="modal-output"></div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                <div>
+                    <div style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.5rem;">Trace Metrics</div>
+                    <div style="background: rgba(0,0,0,0.2); padding: 1rem; border-radius: 0.75rem; font-size: 0.85rem;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span>Latency:</span> <b id="m-lat" style="color: var(--accent-secondary)"></b></div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;"><span>Total Tokens:</span> <b id="m-tok"></b></div>
+                        <div style="display: flex; justify-content: space-between;"><span>Estimated Cost:</span> <b id="m-cost" style="color: var(--success)"></b></div>
+                    </div>
+                </div>
+                <div>
+                    <div style="color: var(--text-secondary); font-size: 0.7rem; text-transform: uppercase; margin-bottom: 0.5rem;">Raw Transaction Detail</div>
+                    <div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 0.75rem; max-height: 140px; overflow-y: auto;">
+                        <pre id="modal-raw" style="font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: #64748b;"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        let currentTransactions = [];
+        let currentAuditLogs = [];
+
+        async function update() {
+            try {
+                const rStats = await fetch('/api/obs/stats');
+                const d = await rStats.json();
+                if (d.error) return;
+
+                document.getElementById('s-req').innerText = d.total_requests;
+                document.getElementById('s-lat').innerText = Math.round(d.p90_latency);
+                const eRate = d.total_requests > 0 ? (d.error_count/d.total_requests*100).toFixed(1) : 0;
+                document.getElementById('s-err').innerText = eRate + '%';
+                document.getElementById('s-esc').innerText = d.escalated_count;
+                document.getElementById('s-tok').innerText = `${d.tokens_in} / ${d.tokens_out}`;
+                document.getElementById('s-cost').innerText = '$' + d.total_cost.toFixed(4);
+
+                // Handle Alerts
+                const ac = document.getElementById('alert-container');
+                ac.innerHTML = d.alerts.map(a => `
+                    <div class="alert-card ${a.type === 'BudgetWarning' ? 'warning' : ''}">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <i data-lucide="alert-circle"></i>
+                            <div>
+                                <b style="display: block; font-size: 0.9rem;">${a.type}</b>
+                                <span style="font-size: 0.8rem; opacity: 0.8;">${a.msg}</span>
+                            </div>
+                        </div>
+                        <a href="/runbooks" target="_blank">RESOLVE INCIDENT</a>
+                    </div>
+                `).join('');
+                if (d.alerts.length > 0) lucide.createIcons();
+
+                // Transactions (Restored onclick)
+                currentTransactions = d.transactions;
+                document.getElementById('t-body').innerHTML = d.transactions.map((t, idx) => `
+                    <tr onclick="showDetail(${idx})">
+                        <td>${new Date(t.ts).toLocaleTimeString()}</td>
+                        <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${t.input || '...'}</td>
+                        <td style="font-family: monospace; opacity: 0.5;">${t.id.slice(-6)}</td>
+                        <td>${t.latency || 0}ms</td>
+                        <td><span class="tag tag-${t.status === 'success' ? 'success' : 'error'}">${t.status}</span></td>
+                    </tr>
+                `).join('');
+
+                // Audit Stream (NÂNG CẤP: Thêm click event và hover)
+                const rAudit = await fetch('/api/obs/audit');
+                currentAuditLogs = await rAudit.json();
+                const as = document.getElementById('audit-stream');
+                as.innerHTML = currentAuditLogs.map((l, idx) => {
+                    let icon = '•';
+                    let color = 'inherit';
+                    const ev = l.event.toLowerCase();
+                    
+                    if (ev.includes('error') || ev.includes('failed') || ev.includes('global')) {
+                        icon = '🚨'; color = 'var(--error)';
+                    } else if (ev.includes('warning') || ev.includes('budget')) {
+                        icon = '⚠️'; color = 'var(--warning)';
+                    } else if (ev.includes('escalation')) {
+                        icon = '📞'; color = 'var(--accent-secondary)';
+                    } else if (ev.includes('feedback')) {
+                        icon = '✨'; color = 'var(--accent-primary)';
+                    }
+
+                    // Content details
+                    let detail = '';
+                    if (l.payload) {
+                        if (l.payload.type) detail = `-> ${l.payload.type}`;
+                        if (l.payload.answer_content) {
+                             const preview = l.payload.answer_content.length > 40 ? l.payload.answer_content.substring(0, 40) + '...' : l.payload.answer_content;
+                             detail += `: "${preview}"`;
+                        }
+                        else if (l.payload.detail) detail = `-> ${l.payload.detail}`;
+                    }
+
+                    return `
+                        <div class="audit-line" onclick="showAuditDetail(${idx})" style="color: ${color}; border-bottom: 1px solid rgba(255,255,255,0.03); padding: 0.5rem 0; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.7rem; opacity: 0.6; margin-bottom: 2px;">
+                                <span>${new Date(l.ts).toLocaleTimeString()}</span>
+                                <span>Ref: ${l.payload?.target_id?.slice(-6) || 'N/A'}</span>
+                            </div>
+                            <div style="font-size: 0.85rem; display: flex; align-items: flex-start; gap: 8px;">
+                                <span>${icon}</span>
+                                <span><b>${l.event.toUpperCase()}</b> <span style="font-size: 0.8rem; opacity: 0.8">${detail}</span></span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) { console.error(err); }
+        }
+
+        // Hiện chi tiết câu trả lời từ Audit
+        function showAuditDetail(idx) {
+            const l = currentAuditLogs[idx];
+            if (!l) return;
+            document.getElementById('modal-id').innerText = l.payload?.target_id || 'System Event';
+            document.getElementById('modal-ts').innerText = new Date(l.ts).toLocaleString();
+            document.getElementById('modal-input').innerText = 'Audit Event Context / Details';
+            // Hiện FULL nội dung câu trả lời ở đây
+            document.getElementById('modal-output').innerText = l.payload?.answer_content || 'Không có nội dung câu trả lời đi kèm.';
+            
+            document.getElementById('m-lat').innerText = 'N/A';
+            document.getElementById('m-tok').innerText = 'N/A';
+            document.getElementById('m-cost').innerText = 'Audit Reference';
+            document.getElementById('modal-raw').innerText = JSON.stringify(l, null, 2);
+            document.getElementById('modal-overlay').style.display = 'flex';
+            lucide.createIcons();
+        }
+
+        function showDetail(idx) {
+            const tx = currentTransactions[idx];
+            if (!tx) return;
+            document.getElementById('modal-id').innerText = tx.id;
+            document.getElementById('modal-ts').innerText = new Date(tx.ts).toLocaleString();
+            document.getElementById('modal-input').innerText = tx.input || 'No input data found';
+            document.getElementById('modal-output').innerText = tx.output || 'No response data';
+            document.getElementById('m-lat').innerText = (tx.latency || 0) + 'ms';
+            document.getElementById('m-tok').innerText = (tx.tokens || 0);
+            document.getElementById('m-cost').innerText = '$' + (tx.cost || 0).toFixed(5);
+            document.getElementById('modal-raw').innerText = JSON.stringify(tx, null, 2);
+            document.getElementById('modal-overlay').style.display = 'flex';
+            lucide.createIcons();
+        }
+
+        function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+
+        setInterval(update, 1500);
+        update();
+    </script>
+</body>
+</html>

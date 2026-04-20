@@ -36,8 +36,14 @@ export default function Home() {
         user_id: userId,
       });
 
-      // Add assistant message
-      addMessage('assistant', response.data.content, response.data.cost, response.data.warning);
+      // Add assistant message with correlation_id
+      addMessage(
+        'assistant', 
+        response.data.content, 
+        response.data.cost, 
+        response.data.warning, 
+        response.data.correlation_id
+      );
 
       // Update cost info
       setCostInfo({
@@ -55,8 +61,15 @@ export default function Home() {
   };
 
   const handleFeedback = async (messageIndex: number, type: 'helpful' | 'unhelpful' | 'escalated') => {
+    const msg = messages[messageIndex];
+    if (!msg || msg.role !== 'assistant') return;
+
     try {
-      await chatApi.recordFeedback({ type });
+      await chatApi.recordFeedback({ 
+        type, 
+        target_id: msg.correlation_id,
+        answer_content: msg.content // Gửi kèm nội dung để Admin thấy trên Dashboard
+      });
       // Reload metrics would happen automatically via polling
     } catch (err) {
       console.error('Failed to record feedback:', err);

@@ -20,16 +20,27 @@ ROOT_DIR = Path(__file__).parent.parent.parent.parent
 LOG_PATH = ROOT_DIR / "data" / "logs.jsonl"
 
 
+AUDIT_PATH = ROOT_DIR / "data" / "audit.jsonl"
+
 class JsonlFileProcessor:
     """Processor ghi mỗi log record thành 1 dòng JSON vào file JSONL."""
-
     def __call__(self, logger: Any, method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
-        # Tạo thư mục data/ nếu chưa có
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        # Dùng ensure_ascii=False để ghi tiếng Việt trực tiếp vào file log
         rendered = structlog.processors.JSONRenderer(ensure_ascii=False)(logger, method_name, event_dict.copy())
         with LOG_PATH.open("a", encoding="utf-8") as f:
             f.write(rendered + "\n")
+        return event_dict
+
+class AuditFileProcessor:
+    """Processor ghi các sự kiện nhạy cảm (Audit) vào file riêng."""
+    def __call__(self, logger: Any, method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+        # Danh sách các sự kiện cần đưa vào Audit Log
+        audit_events = ["escalation_sent", "feedback_recorded", "budget_exceeded", "global_budget_exceeded", "request_failed"]
+        if event_dict.get("event") in audit_events:
+            AUDIT_PATH.parent.mkdir(parents=True, exist_ok=True)
+            rendered = structlog.processors.JSONRenderer(ensure_ascii=False)(logger, method_name, event_dict.copy())
+            with AUDIT_PATH.open("a", encoding="utf-8") as f:
+                f.write(rendered + "\n")
         return event_dict
 
 
@@ -78,7 +89,8 @@ def configure_logging() -> None:
             structlog.processors.StackInfoRenderer(),                   # Xử lý stack trace nếu có
             structlog.processors.format_exc_info,                      # Format exception info
             JsonlFileProcessor(),                                       # Ghi ra file JSONL
-            structlog.processors.JSONRenderer(ensure_ascii=False),     # Render ra JSON cho stdout (hiển thị tiếng Việt trực tiếp)
+            AuditFileProcessor(),                                       # Ghi sự kiện Audit ra file riêng
+            structlog.processors.JSONRenderer(ensure_ascii=False),     # Render ra JSON cho stdout
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
         cache_logger_on_first_use=True,
