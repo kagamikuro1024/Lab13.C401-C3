@@ -80,9 +80,20 @@ python scripts/validate_logs.py
 
 ---
 
-### ✅ Bước 4 — Kiểm tra Metrics
+### ✅ Bước 4 — Sinh dữ liệu test bằng Frontend
 
-Gửi request thử và kiểm tra endpoint metrics mới:
+> 💡 **Cách dễ nhất:** Dùng giao diện chat thay vì gõ lệnh!
+
+1. Mở terminal → khởi động frontend:
+   ```bash
+   cd app/frontend
+   npm run dev
+   ```
+2. Mở trình duyệt → `http://localhost:3000`
+3. **Chat thử 5–10 câu hỏi** (ví dụ: *"Con trỏ là gì?"*, *"Vòng lặp for trong C"*)
+4. Quay lại terminal backend → thấy log JSON nhảy lên là thành công!
+
+Sau đó kiểm tra metrics thật:
 ```bash
 curl http://localhost:8000/obs-metrics
 ```

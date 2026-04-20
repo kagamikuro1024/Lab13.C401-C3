@@ -126,17 +126,24 @@ def test_user_id_hashing():
 python -m pytest tests/test_pii.py -v
 ```
 
-Sau đó gửi request thật để xem log:
-```bash
-# Terminal 1: Khởi động server (cd app/backend trước)
-python -m uvicorn app.main:app --port 8000
+Sau đó kiểm tra log thực tế bằng **Frontend** — cách siêu dễ:
 
-# Terminal 2: Gửi câu hỏi có Email
-curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d "{\"content\": \"Hỏi về malloc, email em là abc@gmail.com\", \"user_id\": \"vinh-test\"}"
+1. Mở terminal → khởi động frontend:
+   ```bash
+   cd app/frontend && npm run dev
+   ```
+2. Mở trình duyệt → `http://localhost:3000`
+3. Gõ vào ô chat: **"Hỏi về malloc, email em là abc@gmail.com"**
+4. Kiểm tra file log — phải thấy `REDACTED_EMAIL` thay vì email thật:
+   ```bash
+   python -c "
+   import json
+   for l in open('data/logs.jsonl', encoding='utf-8'):
+       if 'REDACTED' in l:
+           print('✅ PII bị redact:', json.loads(l).get('payload'))
+   "
+   ```
 
-# Kiểm tra log
-type data\logs.jsonl | findstr /i "REDACTED"
-```
 
 ---
 

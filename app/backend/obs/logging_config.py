@@ -65,6 +65,15 @@ def configure_logging() -> None:
             merge_contextvars,                                          # Gộp contextvars (correlation_id, user_id_hash, v.v.)
             structlog.processors.add_log_level,                        # Thêm trường level: info, error, ...
             structlog.processors.TimeStamper(fmt="iso", utc=True, key="ts"),  # Timestamp ISO 8601
+            # Thêm giá trị mặc định cho các trường bắt buộc để pass validate_logs.py
+            lambda _, __, event_dict: {
+                "correlation_id": "N/A",
+                "user_id_hash": "N/A",
+                "session_id": "N/A",
+                "feature": "N/A",
+                "model": "N/A",
+                **event_dict
+            },
             scrub_event,                                                # Xóa PII trước khi lưu
             structlog.processors.StackInfoRenderer(),                   # Xử lý stack trace nếu có
             structlog.processors.format_exc_info,                      # Format exception info

@@ -10,7 +10,16 @@ from pydantic import BaseModel
 from typing import Dict, Optional
 import os
 import time
+# === Load Environment Variables FIRST ===
+import os
+from pathlib import Path
 from dotenv import load_dotenv
+
+# Trỏ thẳng vào file .env trong thư mục app/backend
+env_path = Path(__file__).parent.parent / ".env"
+# Ép buộc ghi đè nếu đã lỡ load file .env khác trước đó
+load_dotenv(dotenv_path=env_path, override=True)
+
 import sys
 from pathlib import Path
 
@@ -34,8 +43,7 @@ from obs.metrics import record_request, record_error, snapshot
 from obs.tracing import tracing_enabled
 from structlog.contextvars import bind_contextvars
 
-# Khởi động structured logging trước khi làm bất cứ thứ gì
-load_dotenv()
+# Khởi động structured logging
 configure_logging()
 log = get_logger()
 
