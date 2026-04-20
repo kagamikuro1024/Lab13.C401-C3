@@ -20,7 +20,7 @@ def test_scrub_email():
 def test_scrub_phone():
     text = "Call me at 0912345678"
     result = scrub_text(text)
-    assert "[REDACTED_PHONE_VN]" in result
+    assert "[REDACTED_PHONE/TAX_ID_VN]" in result
     assert "0912345678" not in result
 
 def test_scrub_passport():
@@ -36,3 +36,9 @@ def test_user_id_hashing():
     assert user_id not in hashed
     # Deterministic check
     assert hash_user_id(user_id) == hashed
+
+def test_IID():
+    text = "My IID is 024508096456"
+    result = scrub_text(text)
+    assert "[REDACTED_CCCD]" in result
+    assert "024508096456" not in result
