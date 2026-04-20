@@ -26,7 +26,8 @@ class JsonlFileProcessor:
     def __call__(self, logger: Any, method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
         # Tạo thư mục data/ nếu chưa có
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        rendered = structlog.processors.JSONRenderer()(logger, method_name, event_dict.copy())
+        # Dùng ensure_ascii=False để ghi tiếng Việt trực tiếp vào file log
+        rendered = structlog.processors.JSONRenderer(ensure_ascii=False)(logger, method_name, event_dict.copy())
         with LOG_PATH.open("a", encoding="utf-8") as f:
             f.write(rendered + "\n")
         return event_dict
@@ -68,7 +69,7 @@ def configure_logging() -> None:
             structlog.processors.StackInfoRenderer(),                   # Xử lý stack trace nếu có
             structlog.processors.format_exc_info,                      # Format exception info
             JsonlFileProcessor(),                                       # Ghi ra file JSONL
-            structlog.processors.JSONRenderer(),                        # Render ra JSON cho stdout
+            structlog.processors.JSONRenderer(ensure_ascii=False),     # Render ra JSON cho stdout (hiển thị tiếng Việt trực tiếp)
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
         cache_logger_on_first_use=True,
