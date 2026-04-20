@@ -1,19 +1,24 @@
 alerts:
   - name: high_latency_p95
     severity: P2
+    description: "P95 latency vượt 5 giây - Hệ thống chatbot phản hồi quá chậm"
     condition: latency_p95_ms > 5000 for 30m
-    type: symptom-based
-    owner: team-oncall
     runbook: docs/alerts.md#1-high-latency-p95
+
   - name: high_error_rate
     severity: P1
+    description: "Tỷ lệ lỗi > 5% - Nghi ngờ lỗi API Key hoặc server backend tèo"
     condition: error_rate_pct > 5 for 5m
-    type: symptom-based
-    owner: team-oncall
     runbook: docs/alerts.md#2-high-error-rate
+
   - name: cost_budget_spike
     severity: P2
+    description: "Chi phí OpenAI tăng vọt bất thường"
     condition: hourly_cost_usd > 2x_baseline for 15m
-    type: symptom-based
-    owner: finops-owner
     runbook: docs/alerts.md#3-cost-budget-spike
+
+  - name: low_quality_score
+    severity: P3
+    description: "Chất lượng câu trả lời chatbot đi xuống (điểm < 0.6)"
+    condition: quality_score_avg < 0.6 for 30m
+    runbook: docs/alerts.md#4-low-quality-score

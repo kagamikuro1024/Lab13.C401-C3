@@ -1,40 +1,17 @@
-# Alert Rules and Runbooks
+# 📖 Runbook Xử Lý Sự Cố Chatbot
 
-## 1. High latency P95
-- Severity: P2
-- Trigger: `latency_p95_ms > 5000 for 30m`
-- Impact: tail latency breaches SLO
-- First checks:
-  1. Open top slow traces in the last 1h
-  2. Compare RAG span vs LLM span
-  3. Check if incident toggle `rag_slow` is enabled
-- Mitigation:
-  - truncate long queries
-  - fallback retrieval source
-  - lower prompt size
+## 1. HIGH LATENCY P95 (Chatbot chậm)
+- **Kiểm tra**: Xem Langfuse traces để biết RAG hay LLM chậm.
+- **Xử lý**: Nếu là RAG, kiểm tra FAISS index. Nếu là LLM, có thể OpenAI đang lag.
 
-## 2. High error rate
-- Severity: P1
-- Trigger: `error_rate_pct > 5 for 5m`
-- Impact: users receive failed responses
-- First checks:
-  1. Group logs by `error_type`
-  2. Inspect failed traces
-  3. Determine whether failures are LLM, tool, or schema related
-- Mitigation:
-  - rollback latest change
-  - disable failing tool
-  - retry with fallback model
+## 2. HIGH ERROR RATE (Chatbot lỗi)
+- **Kiểm tra**: `cat data/logs.jsonl | grep "error"`.
+- **Xử lý**: Kiểm tra lại file `.env` đã có OpenAI Key chưa. Kiểm tra internet.
 
-## 3. Cost budget spike
-- Severity: P2
-- Trigger: `hourly_cost_usd > 2x_baseline for 15m`
-- Impact: burn rate exceeds budget
-- First checks:
-  1. Split traces by feature and model
-  2. Compare tokens_in/tokens_out
-  3. Check if `cost_spike` incident was enabled
-- Mitigation:
-  - shorten prompts
-  - route easy requests to cheaper model
-  - apply prompt cache
+## 3. COST BUDGET SPIKE (Chi phí tăng)
+- **Kiểm tra**: `/obs-metrics` để xem `total_cost_usd`.
+- **Xử lý**: Dừng ngay nếu có script load test đang chạy quá đà.
+
+## 4. LOW QUALITY SCORE (Trả lời dở)
+- **Kiểm tra**: Xem lại prompt trong `agent.py` hoặc dữ liệu `knowledge_base/`.
+- **Xử lý**: Cập nhật thêm thông tin vào file `.json` hoặc `.md` trong knowledge base.
