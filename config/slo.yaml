@@ -1,16 +1,20 @@
-service: day13-observability-lab
+service: ta-chatbot-backend
 window: 28d
+
 slis:
   latency_p95_ms:
-    objective: 3000
-    target: 99.5
-    note: Replace with your group's target
+    objective: 5000       # Chatbot được phép phản hồi trong 5s (vì có LLM)
+    target: 99.0
   error_rate_pct:
     objective: 2
-    target: 99.0
+    target: 99.9
   daily_cost_usd:
-    objective: 2.5
+    objective: 5.0
     target: 100.0
   quality_score_avg:
-    objective: 0.75
+    objective: 0.7
     target: 95.0
+
+evidence:
+  measured_latency_p95_ms: "" # Chạy load test xong điền vào đây
+  validate_logs_score: ""     # Chạy python scripts/validate_logs.py rồi điền
