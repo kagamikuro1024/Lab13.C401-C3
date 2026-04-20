@@ -42,8 +42,12 @@ from obs.middleware import CorrelationIdMiddleware
 from obs.pii import hash_user_id, summarize_text
 from obs.metrics import record_request, record_error, snapshot
 from obs.tracing import langfuse_context
+from obs.timeout_monitor import timeout_monitor
 from structlog.contextvars import bind_contextvars
 import json
+
+# === PERFORMANCE OPTIMIZATION ===
+from rag.cache_manager import rag_cache
 
 # Khởi động structured logging
 configure_logging()
@@ -217,6 +221,10 @@ async def chat(request: Request, message: ChatMessage):
             tokens_in=input_tokens,
             tokens_out=output_tokens,
         )
+        
+        # Record to timeout monitor for performance tracking
+        timeout_monitor.record_request_time(latency_ms)
+        
         update_metric("total", 1)
 
         user_stats = cost_guard.get_user_stats(user_id)
@@ -422,6 +430,35 @@ async def get_obs_stats():
         return stats
     except Exception as e:
         return {"error": str(e)}
+
+
+@app.get("/api/obs/timeout-stats")
+async def timeout_stats():
+    """
+    Timeout monitoring statistics
+    Tracks response times, timeout risks, and alert conditions
+    """
+    stats = timeout_monitor.get_stats()
+    alert = timeout_monitor.get_alert_message()
+    
+    return {
+        "stats": stats,
+        "alert": alert,
+        "recent_timeouts": timeout_monitor.get_recent_timeouts(5) if stats.get("timeout_count", 0) > 0 else []
+    }
+
+
+@app.get("/api/obs/cache-stats")
+async def cache_stats():
+    """
+    RAG Cache statistics
+    Tracks cache hit rate, hot queries, and memory usage
+    """
+    return {
+        "stats": rag_cache.stats(),
+        "hot_queries": rag_cache.get_hot_queries(5)
+    }
+
 
 @app.get("/runbooks")
 async def serve_runbooks():
