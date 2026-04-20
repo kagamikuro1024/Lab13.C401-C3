@@ -41,6 +41,7 @@ from obs.logging_config import configure_logging, get_logger
 from obs.middleware import CorrelationIdMiddleware
 from obs.pii import hash_user_id, summarize_text
 from obs.metrics import record_request, record_error, snapshot
+from obs.tracing import langfuse_context
 from structlog.contextvars import bind_contextvars
 import json
 
@@ -190,6 +191,17 @@ async def chat(request: Request, message: ChatMessage):
 
         # Gọi agent (regular function — @observe hoạt động đúng với Langfuse v3)
         full_response = agent_chat(message.content, [])
+        
+        # Update Langfuse trace metadata
+        langfuse_context.update_current_trace(
+            tags=["day13-lab", "ta-chatbot", "streaming"],
+            metadata={
+                "user_id_hash": hash_user_id(message.user_id or "anonymous"),
+                "message_len": len(message.content),
+                "response_len": len(full_response),
+            }
+        )
+        
         latency_ms = int((time.perf_counter() - t_start) * 1000)
 
         # Ước tính token và chi phí

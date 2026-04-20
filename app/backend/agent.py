@@ -1,5 +1,6 @@
 """
 LangGraph Agent — AI Trợ Giảng cho khóa học Lập trình C/C++ cơ bản.
+Day 13 Observability Lab — Integrated with Langfuse tracing.
 """
 
 from langchain_openai import ChatOpenAI
@@ -7,6 +8,8 @@ from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import AIMessage
 
 from app import config
+from obs.tracing import observe
+from obs.pii import summarize_text
 from tools.search_materials import search_course_materials
 from tools.code_analyzer import analyze_code_error
 from tools.course_info import get_course_info
@@ -182,6 +185,7 @@ agent = create_react_agent(
 )
 
 
+@observe(name="ta_chatbot_chat")
 def chat(message: str, history: list[dict] = None) -> str:
     """
     Gửi tin nhắn và nhận phản hồi từ agent.
@@ -203,6 +207,7 @@ def chat(message: str, history: list[dict] = None) -> str:
     return "Xin lỗi, mình không thể trả lời câu hỏi này. Bạn thử hỏi lại nhé!"
 
 
+@observe(name="ta_chatbot_stream")
 def stream_chat(message: str, history: list[dict] = None):
     """
     Stream phản hồi từ agent (cho FastAPI/Frontend).
