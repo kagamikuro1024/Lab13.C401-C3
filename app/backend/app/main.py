@@ -7,7 +7,7 @@ Day 13 Observability Lab — Đã tích hợp structlog, correlation ID, PII scr
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Dict, Optional
 import os
 import time
@@ -73,7 +73,7 @@ health_monitor = HealthMonitor()
 
 # ===== Models =====
 class ChatMessage(BaseModel):
-    content: str
+    content: str = Field(..., min_length=1, description="Chat message content, must not be empty")
     user_id: Optional[str] = None
 
 class ChatResponse(BaseModel):
