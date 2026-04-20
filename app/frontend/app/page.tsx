@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Sidebar } from '@/components/Sidebar';
+import Dashboard from '@/components/Dashboard';
 import { useChatStore } from '@/store/chat';
 import { chatApi, metricsApi } from '@/lib/api';
 
 export default function Home() {
   const [apiKey, setApiKey] = useState('');
   const [costInfo, setCostInfo] = useState({ spent: 0, budget: 1.0, warning: '' });
+  const [showDashboard, setShowDashboard] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const { messages, loading, addMessage, setLoading, setError, clearMessages, darkMode } = useChatStore();
@@ -92,16 +94,52 @@ export default function Home() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className={`${cardBg} border-b p-6 text-center`}>
-          <h1 className={`text-3xl font-bold font-serif ${textColor}`}>AI Trợ Giảng</h1>
-          <p className={`text-sm ${darkMode ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
-            Hỗ trợ học tập Lập trình C/C++ với GPT-4
-          </p>
+        {/* Header with Tabs */}
+        <div className={`${cardBg} border-b p-4 text-center`}>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex gap-2 flex-1 justify-center">
+              <button
+                onClick={() => setShowDashboard(false)}
+                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                  !showDashboard
+                    ? 'bg-accent text-white'
+                    : darkMode ? 'bg-dark-secondary text-dark-text-secondary hover:text-dark-text' : 'bg-light-card text-light-text-secondary hover:text-light-text'
+                }`}
+              >
+                💬 Chat
+              </button>
+              <button
+                onClick={() => setShowDashboard(true)}
+                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                  showDashboard
+                    ? 'bg-accent text-white'
+                    : darkMode ? 'bg-dark-secondary text-dark-text-secondary hover:text-dark-text' : 'bg-light-card text-light-text-secondary hover:text-light-text'
+                }`}
+              >
+                📊 Observability
+              </button>
+            </div>
+          </div>
+          {!showDashboard && (
+            <>
+              <h1 className={`text-3xl font-bold font-serif ${textColor}`}>AI Trợ Giảng</h1>
+              <p className={`text-sm ${darkMode ? 'text-dark-text-secondary' : 'text-light-text-secondary'}`}>
+                Hỗ trợ học tập Lập trình C/C++ với GPT-4
+              </p>
+            </>
+          )}
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        {/* Main Content Area */}
+        {showDashboard ? (
+          // Dashboard View
+          <div className="flex-1 overflow-y-auto p-6 bg-slate-950">
+            <Dashboard />
+          </div>
+        ) : (
+          <>
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-md">
@@ -195,10 +233,12 @@ export default function Home() {
           )}
 
           <div ref={messagesEndRef} />
-        </div>
+            </div>
 
-        {/* Input Area */}
-        <ChatInput onSendMessage={handleSendMessage} disabled={loading} darkMode={darkMode} />
+            {/* Input Area */}
+            <ChatInput onSendMessage={handleSendMessage} disabled={loading} darkMode={darkMode} />
+          </>
+        )}
       </div>
     </div>
   );
