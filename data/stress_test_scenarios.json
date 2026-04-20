@@ -1,0 +1,153 @@
+{
+  "scenarios": [
+    {
+      "id": "1_health_check",
+      "name": "Health Check Endpoint",
+      "endpoint": "/health",
+      "method": "GET",
+      "payload": {},
+      "timeout": 5,
+      "expected_status": 200,
+      "description": "Fast health check"
+    },
+    {
+      "id": "2_normal_chat",
+      "name": "Normal Chat Query - Pointers",
+      "endpoint": "/chat",
+      "method": "POST",
+      "payload": {
+        "content": "Con trỏ trong C là gì? Giải thích cho mình với.",
+        "user_id": "u002"
+      },
+      "timeout": 20,
+      "expected_status": 200,
+      "description": "Basic chat query about C pointers"
+    },
+    {
+      "id": "3_chat_with_pii_email",
+      "name": "Chat with PII - Email Injection",
+      "endpoint": "/chat",
+      "method": "POST",
+      "payload": {
+        "content": "Giúp tôi, liên hệ email: student@vinuni.edu.vn nha",
+        "user_id": "u003"
+      },
+      "timeout": 20,
+      "expected_status": 200,
+      "description": "PII scrubbing: email redaction"
+    },
+    {
+      "id": "4_chat_with_pii_phone",
+      "name": "Chat with PII - Phone Injection",
+      "endpoint": "/chat",
+      "method": "POST",
+      "payload": {
+        "content": "SĐT của tôi là 0987654321, cần giúp lập trình C",
+        "user_id": "u004"
+      },
+      "timeout": 20,
+      "expected_status": 200,
+      "description": "PII scrubbing: phone number redaction"
+    },
+    {
+      "id": "5_chat_with_cccd",
+      "name": "Chat with CCCD/Passport PII",
+      "endpoint": "/chat",
+      "method": "POST",
+      "payload": {
+        "content": "Số CCCD 123456789012 và passport NH1234567 của tôi",
+        "user_id": "u005"
+      },
+      "timeout": 20,
+      "expected_status": 200,
+      "description": "PII scrubbing: ID document redaction"
+    },
+    {
+      "id": "6_chat_loops",
+      "name": "Chat Query - Loops",
+      "endpoint": "/chat",
+      "method": "POST",
+      "payload": {
+        "content": "Vòng lặp for trong C hoạt động như thế nào? Cho ví dụ cụ thể.",
+        "user_id": "u006"
+      },
+      "timeout": 20,
+      "expected_status": 200,
+      "description": "Chat about C loops"
+    },
+    {
+      "id": "7_chat_arrays",
+      "name": "Chat Query - Arrays",
+      "endpoint": "/chat",
+      "method": "POST",
+      "payload": {
+        "content": "Mảng 2 chiều trong C khai báo và sử dụng như thế nào?",
+        "user_id": "u007"
+      },
+      "timeout": 20,
+      "expected_status": 200,
+      "description": "Chat about 2D arrays"
+    },
+    {
+      "id": "8_chat_memory",
+      "name": "Chat Query - Memory Management",
+      "endpoint": "/chat",
+      "method": "POST",
+      "payload": {
+        "content": "Hàm malloc dùng để làm gì? Tại sao phải free() sau malloc()?",
+        "user_id": "u008"
+      },
+      "timeout": 20,
+      "expected_status": 200,
+      "description": "Chat about memory management"
+    },
+    {
+      "id": "9_missing_field_error",
+      "name": "Validation Error - Missing Field",
+      "endpoint": "/chat",
+      "method": "POST",
+      "payload": {
+        "user_id": "u009"
+      },
+      "timeout": 5,
+      "expected_status": 422,
+      "description": "Validation error when content is missing"
+    },
+    {
+      "id": "10_empty_content_error",
+      "name": "Validation Error - Empty Content",
+      "endpoint": "/chat",
+      "method": "POST",
+      "payload": {
+        "content": "",
+        "user_id": "u010"
+      },
+      "timeout": 5,
+      "expected_status": 422,
+      "description": "Validation error when content is empty"
+    },
+    {
+      "id": "11_invalid_endpoint_404",
+      "name": "Not Found - Invalid Endpoint",
+      "endpoint": "/invalid_route_xyz",
+      "method": "POST",
+      "payload": {
+        "content": "test",
+        "user_id": "u011"
+      },
+      "timeout": 5,
+      "expected_status": 404,
+      "description": "404 error handling"
+    },
+    {
+      "id": "12_metrics_endpoint",
+      "name": "Metrics Endpoint",
+      "endpoint": "/metrics",
+      "method": "GET",
+      "payload": {},
+      "timeout": 5,
+      "expected_status": 200,
+      "description": "Retrieve current metrics"
+    }
+  ]
+}
