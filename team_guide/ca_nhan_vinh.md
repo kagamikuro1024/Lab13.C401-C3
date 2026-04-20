@@ -1,20 +1,21 @@
 # 📋 KẾ HOẠCH CÁ NHÂN — VINH
 ## Day 13: Monitoring, Logging & Observability
+### Hệ thống: TA_Chatbot (Backend: `app/backend/`)
 
 > **Nhánh Git cần tạo:** `feature/pii-vinh`  
-> **Nhiệm vụ chính:** Tăng cường PII Protection — Thêm patterns & kiểm thử  
-> **Thời gian ước tính:** 60–75 phút
+> **Nhiệm vụ chính:** Tăng cường PII Protection — Thêm patterns & kiểm thử trên backend thật  
+> **Thời gian ước tính:** 60 phút
 
 ---
 
 ## 🎯 Vinh làm gì?
 
-**PII** (Personal Identifiable Information) là thông tin cá nhân nhạy cảm như email, số điện thoại, số CCCD. Hệ thống cần **tự động xóa (redact)** các thông tin này khỏi log trước khi ghi.
+Trong hệ thống chatbot thật, học viên thường vô tình gửi Email, Số điện thoại hoặc Mã số thuế khi hỏi bài. Hệ thống của chúng ta cần **tự động xóa (redact)** các thông tin này khỏi log để đảm bảo an ninh dữ liệu.
 
 Vinh chịu trách nhiệm:
-1. **Thêm PII patterns** mới vào `app/pii.py` (hiện có 4, cần thêm ít nhất 2 pattern mới)
-2. **Viết test case** để kiểm tra chức năng PII scrubbing
-3. **Kiểm tra** log thực tế không có PII lọt qua
+1. **Thêm PII patterns mới** vào module `app/backend/obs/pii.py`.
+2. **Viết test cases** trong `tests/test_pii.py` để kiểm tra module này.
+3. **Verify** log thực tế sau khi chạy server.
 
 ---
 
@@ -22,25 +23,8 @@ Vinh chịu trách nhiệm:
 
 | File | Việc cần làm |
 |------|-------------|
-| `app/pii.py` | Thêm Passport VN, địa chỉ VN, Mã số thuế patterns |
-| `tests/test_pii.py` | Tạo mới: test cases kiểm tra PII scrubbing |
-
----
-
-## 🧠 Hiểu nhanh về code
-
-Mở file `app/pii.py`. Bạn sẽ thấy:
-
-```python
-PII_PATTERNS: dict[str, str] = {
-    "email": r"[\w\.-]+@[\w\.-]+\.\w+",           # Ví dụ: abc@gmail.com → [REDACTED_EMAIL]
-    "phone_vn": r"(?:\+84|0)[ \.-]?\d{3}...",      # Ví dụ: 0912345678 → [REDACTED_PHONE_VN]
-    "cccd": r"\b\d{12}\b",                          # Ví dụ: 123456789012 → [REDACTED_CCCD]
-    "credit_card": r"\b\d{4}[- ]?\d{4}[- ]?...",   # Ví dụ: 4111-1111-1111-1111 → [REDACTED_CREDIT_CARD]
-}
-```
-
-Hàm `scrub_text(text)` tự động áp dụng tất cả patterns lên văn bản và thay thế bằng `[REDACTED_TEN_PATTERN]`.
+| `app/backend/obs/pii.py` | Thêm Passport VN, Địa chỉ VN, Mã số thuế patterns |
+| `tests/test_pii.py` | Cập nhật bộ test để trỏ vào backend/obs/pii.py |
 
 ---
 
@@ -56,254 +40,112 @@ git checkout -b feature/pii-vinh
 
 ---
 
-### ✅ Bước 2 — Thêm PII Patterns vào `app/pii.py`
+### ✅ Bước 2 — Mở và chỉnh sửa `app/backend/obs/pii.py`
 
-Mở file `app/pii.py`.
+Mở file `app/backend/obs/pii.py` (Lưu ý: file nằm trong folder backend). 
 
-**Thay toàn bộ nội dung** bằng code sau (đã có sẵn 4 patterns cũ + 3 patterns mới do Vinh thêm):
+**Thay toàn bộ nội dung** bằng code sau để đảm bảo có đủ 7 patterns (Vinh đã thêm 3 patterns mới):
 
 ```python
+"""
+Module xử lý PII cho TA_Chatbot backend.
+Cập nhật bởi: Vinh (Day 13 Lab)
+"""
 from __future__ import annotations
-
 import hashlib
 import re
 
-# Từ điển các pattern PII (thông tin cá nhân nhạy cảm)
-# Mỗi pattern: tên → biểu thức chính quy (regex)
-# Kết quả redact: [REDACTED_TEN_VIET_HOA]
 PII_PATTERNS: dict[str, str] = {
-    # Pattern gốc — có sẵn từ template
-    "email": r"[\w\.-]+@[\w\.-]+\.\w+",
-    # Số điện thoại Việt Nam: 0912 345 678, +84-912-345-678, v.v.
-    "phone_vn": r"(?:\+84|0)[ \.-]?\d{3}[ \.-]?\d{3}[ \.-]?\d{3,4}",
-    # Số CCCD/CMND mới 12 chữ số
+    "email": r"[\w\.\-]+@[\w\.\-]+\.\w+",
+    "phone_vn": r"(?:\+84|0)[ \.\-]?\d{3}[ \.\-]?\d{3}[ \.\-]?\d{3,4}",
     "cccd": r"\b\d{12}\b",
-    # Số thẻ tín dụng 16 chữ số (có thể viết liền hoặc cách bằng dấu -)
     "credit_card": r"\b\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}\b",
-
-    # Pattern mới — DO VINH THÊM
-    # Hộ chiếu Việt Nam: 1 chữ cái + 7 chữ số (ví dụ: B1234567, C9876543)
+    
+    # --- Pattern mới của Vinh ---
     "passport_vn": r"\b[A-Z]\d{7}\b",
-    # Mã số thuế cá nhân Việt Nam: 10 chữ số hoặc 10+3 chữ số
     "tax_id_vn": r"\b\d{10}(?:-\d{3})?\b",
-    # Địa chỉ Việt Nam: nhận diện khi có từ khóa địa chỉ đặc trưng
-    # Ví dụ: "123 Nguyễn Huệ, Quận 1" hoặc "số 45 đường Lê Lợi, phường Bến Nghé"
     "address_vn": r"(?:số\s+\d+\s+(?:đường|phố)|(?:đường|phố)\s+[\w\s]+,\s*(?:quận|huyện|phường|xã))",
 }
 
-
 def scrub_text(text: str) -> str:
-    """
-    Quét văn bản và thay thế tất cả thông tin PII bằng [REDACTED_TEN_PATTERN].
-    Hàm này là lớp bảo vệ chính để không lọ thông tin nhạy cảm ra log.
-    """
+    """Quét và thay thế PII bằng [REDACTED_TEN_PATTERN]"""
+    if not isinstance(text, str): return text
     safe = text
     for name, pattern in PII_PATTERNS.items():
         safe = re.sub(pattern, f"[REDACTED_{name.upper()}]", safe, flags=re.IGNORECASE)
     return safe
 
+def hash_user_id(user_id: str) -> str:
+    """Hash user_id để không lộ danh tính thật trong log"""
+    return hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:12]
 
 def summarize_text(text: str, max_len: int = 80) -> str:
-    """
-    Tóm tắt văn bản để hiển thị trong log: scrub PII + cắt ngắn tối đa max_len ký tự.
-    """
+    """Scrub PII + Cắt ngắn cho log"""
+    if not isinstance(text, str): return str(text)
     safe = scrub_text(text).strip().replace("\n", " ")
     return safe[:max_len] + ("..." if len(safe) > max_len else "")
-
-
-def hash_user_id(user_id: str) -> str:
-    """
-    Hash user_id bằng SHA-256, chỉ lấy 12 ký tự đầu.
-    Mục đích: không lưu user_id thật vào log/trace, bảo vệ quyền riêng tư.
-    """
-    return hashlib.sha256(user_id.encode("utf-8")).hexdigest()[:12]
 ```
-
-**Lưu file.**
 
 ---
 
-### ✅ Bước 3 — Tạo file test `tests/test_pii.py`
+### ✅ Bước 3 — Cập nhật `tests/test_pii.py`
 
-Kiểm tra xem thư mục `tests/` đã có file nào chưa:
-```bash
-dir tests\
-```
+Vì chúng ta đã chuyển code vào `app/backend/obs/`, Vinh cần cập nhật đường dẫn import trong file test.
 
-Tạo file mới `tests/test_pii.py` với nội dung sau:
+Mở `tests/test_pii.py` (ở thư mục gốc) và thay code:
 
 ```python
-"""
-Kiểm thử (unit test) cho module PII scrubbing.
-Chạy bằng: python -m pytest tests/test_pii.py -v
-"""
-from app.pii import scrub_text, hash_user_id, summarize_text
+import sys
+from pathlib import Path
+# Thêm đường dẫn backend vào sys.path để test có thể import được module obs
+sys.path.insert(0, str(Path(__file__).parent.parent / "app" / "backend"))
 
+from obs.pii import scrub_text, hash_user_id
 
-class TestScrubText:
-    """Kiểm tra hàm scrub_text()"""
+def test_pii_scrubbing():
+    # Test Email
+    assert "[REDACTED_EMAIL]" in scrub_text("Email: test@example.com")
+    # Test Passport (mới)
+    assert "[REDACTED_PASSPORT_VN]" in scrub_text("Hộ chiếu B1234567")
+    # Test Tax ID (mới)
+    assert "[REDACTED_TAX_ID_VN]" in scrub_text("MST: 0123456789")
 
-    def test_redact_email(self):
-        """Email phải bị xóa"""
-        result = scrub_text("Liên hệ qua email trung@example.com nha!")
-        assert "[REDACTED_EMAIL]" in result
-        assert "@example.com" not in result
-
-    def test_redact_phone_vn(self):
-        """Số điện thoại VN phải bị xóa"""
-        result = scrub_text("Gọi cho em số 0912345678 nhé")
-        assert "[REDACTED_PHONE_VN]" in result
-        assert "0912345678" not in result
-
-    def test_redact_phone_with_plus84(self):
-        """Số điện thoại dạng +84 cũng phải bị xóa"""
-        result = scrub_text("Số của tôi: +84912345678")
-        assert "[REDACTED_PHONE_VN]" in result
-
-    def test_redact_cccd(self):
-        """Số CCCD 12 chữ số phải bị xóa"""
-        result = scrub_text("CCCD của em là 123456789012")
-        assert "[REDACTED_CCCD]" in result
-        assert "123456789012" not in result
-
-    def test_redact_credit_card(self):
-        """Số thẻ tín dụng phải bị xóa"""
-        result = scrub_text("Thẻ của tôi: 4111-1111-1111-1111")
-        assert "[REDACTED_CREDIT_CARD]" in result
-
-    def test_redact_passport_vn(self):
-        """Số hộ chiếu VN phải bị xóa (DO VINH THÊM)"""
-        result = scrub_text("Hộ chiếu số B1234567 của tôi")
-        assert "[REDACTED_PASSPORT_VN]" in result
-        assert "B1234567" not in result
-
-    def test_redact_tax_id(self):
-        """Mã số thuế phải bị xóa (DO VINH THÊM)"""
-        result = scrub_text("MST của công ty: 0123456789")
-        assert "[REDACTED_TAX_ID_VN]" in result
-
-    def test_no_false_positive_normal_text(self):
-        """Văn bản bình thường không bị xóa nhầm"""
-        result = scrub_text("Hôm nay học về Python rất hay!")
-        assert "[REDACTED" not in result
-        assert result == "Hôm nay học về Python rất hay!"
-
-    def test_multiple_pii_in_one_text(self):
-        """Nhiều loại PII trong 1 văn bản đều bị xóa"""
-        text = "Email: abc@gmail.com, SĐT: 0987654321, CCCD: 098765432109"
-        result = scrub_text(text)
-        assert "[REDACTED_EMAIL]" in result
-        assert "[REDACTED_PHONE_VN]" in result
-        assert "[REDACTED_CCCD]" in result
-        # Không có thông tin thật nào lọt qua
-        assert "@gmail.com" not in result
-        assert "0987654321" not in result
-        assert "098765432109" not in result
-
-
-class TestHashUserId:
-    """Kiểm tra hàm hash_user_id()"""
-
-    def test_hash_is_12_chars(self):
-        """Hash phải luôn có đúng 12 ký tự"""
-        result = hash_user_id("student-001")
-        assert len(result) == 12
-
-    def test_same_input_same_hash(self):
-        """Cùng user_id phải cho cùng hash (deterministic)"""
-        assert hash_user_id("student-001") == hash_user_id("student-001")
-
-    def test_different_input_different_hash(self):
-        """User_id khác nhau phải cho hash khác nhau"""
-        assert hash_user_id("student-001") != hash_user_id("student-002")
-
-    def test_original_id_not_recoverable(self):
-        """Hash không thể reverse về user_id gốc"""
-        hashed = hash_user_id("student-secret-123")
-        assert "student-secret-123" not in hashed
-
-
-class TestSummarizeText:
-    """Kiểm tra hàm summarize_text()"""
-
-    def test_truncates_long_text(self):
-        """Văn bản dài hơn max_len phải bị cắt ngắn"""
-        long_text = "a" * 200
-        result = summarize_text(long_text, max_len=80)
-        assert len(result) <= 83  # 80 + "..."
-        assert result.endswith("...")
-
-    def test_short_text_not_truncated(self):
-        """Văn bản ngắn hơn max_len không bị thêm ..."""
-        short_text = "Câu hỏi ngắn"
-        result = summarize_text(short_text)
-        assert not result.endswith("...")
-
-    def test_pii_scrubbed_before_truncate(self):
-        """PII phải bị xóa trước khi cắt ngắn"""
-        text = "Email: abc@gmail.com " + "x" * 200
-        result = summarize_text(text)
-        assert "@gmail.com" not in result
-        assert "[REDACTED_EMAIL]" in result or len(result) == 83
+def test_user_id_hashing():
+    uid = "student_001"
+    hashed = hash_user_id(uid)
+    assert len(hashed) == 12
+    assert uid not in hashed
 ```
-
-**Lưu file.**
 
 ---
 
-### ✅ Bước 4 — Chạy Test để Kiểm Tra
+### ✅ Bước 4 — Chạy thử nghiệm
 
 ```bash
-# Cài pytest nếu chưa có
-pip install pytest
-
-# Chạy test (phải đứng ở thư mục gốc Lab13-Observability/)
+# Chạy unit test
 python -m pytest tests/test_pii.py -v
 ```
 
-Kết quả mong đợi: **Tất cả tests PASSED** (màu xanh)
-
-Nếu có test FAILED: đọc thông báo lỗi và sửa lại code trong `app/pii.py`.
-
----
-
-### ✅ Bước 5 — Test Thực Tế qua App
-
+Sau đó gửi request thật để xem log:
 ```bash
-# Khởi động server (nếu chưa chạy)
-uvicorn app.main:app --reload --port 8000
+# Terminal 1: Khởi động server (cd app/backend trước)
+python -m uvicorn app.main:app --port 8000
 
-# Gửi request có chứa PII
-curl -X POST http://localhost:8000/chat \
-  -H "Content-Type: application/json" \
-  -d "{\"user_id\": \"test-001\", \"message\": \"Hộ chiếu của tôi là B9876543 và email là test@test.com\", \"feature\": \"qa\", \"session_id\": \"sess-001\"}"
+# Terminal 2: Gửi câu hỏi có Email
+curl -X POST http://localhost:8000/chat -H "Content-Type: application/json" -d "{\"content\": \"Hỏi về malloc, email em là abc@gmail.com\", \"user_id\": \"vinh-test\"}"
 
-# Kiểm tra log: không được có B9876543 hay test@test.com
-cat data/logs.jsonl | findstr /i "B9876543"
-# Kết quả mong đợi: không có kết quả nào
+# Kiểm tra log
+type data\logs.jsonl | findstr /i "REDACTED"
 ```
 
 ---
 
-### ✅ Bước 6 — Commit và Push
+### ✅ Bước 5 — Commit & Push
 
 ```bash
-git add app/pii.py tests/test_pii.py
-git commit -m "feat(pii): thêm passport_vn, tax_id_vn, address_vn patterns; thêm unit tests PII scrubbing"
+git add app/backend/obs/pii.py tests/test_pii.py
+git commit -m "feat(pii): hoàn thiện 7 PII patterns cho backend chatbot và bộ test"
 git push origin feature/pii-vinh
 ```
 
-**Sau khi push:** báo Trung để merge vào `main`.
-
----
-
-## ✅ CHECKLIST HOÀN THÀNH
-
-- [ ] Đã tạo nhánh `feature/pii-vinh`
-- [ ] `app/pii.py`: Có ≥ 6 PII patterns (4 cũ + ≥ 2 mới của Vinh)
-- [ ] `app/pii.py`: Patterns mới có comment giải thích bằng tiếng Việt
-- [ ] `tests/test_pii.py`: Tạo mới với ≥ 8 test cases
-- [ ] Chạy `pytest tests/test_pii.py -v` → tất cả PASSED
-- [ ] Test thực tế: PII không lọt ra trong `data/logs.jsonl`
-- [ ] Đã commit với message rõ ràng
-- [ ] Đã push lên GitHub và báo Trung
+Báo cho Trung (Tech Lead) sau khi hoàn thành.

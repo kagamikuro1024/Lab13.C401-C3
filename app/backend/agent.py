@@ -173,6 +173,9 @@ llm = ChatOpenAI(
 )
 
 # === AGENT ===
+from obs.tracing import observe, langfuse_context
+from obs.pii import summarize_text
+
 agent = create_react_agent(
     model=llm,
     tools=tools,
@@ -180,16 +183,10 @@ agent = create_react_agent(
 )
 
 
+@observe(name="ta_chatbot_chat")
 def chat(message: str, history: list[dict] = None) -> str:
     """
     Gửi tin nhắn và nhận phản hồi từ agent.
-
-    Args:
-        message: Tin nhắn từ học viên
-        history: Lịch sử hội thoại [{role, content}, ...]
-
-    Returns:
-        Phản hồi từ AI TA
     """
     # Build messages
     messages = []
@@ -208,16 +205,10 @@ def chat(message: str, history: list[dict] = None) -> str:
     return "Xin lỗi, mình không thể trả lời câu hỏi này. Bạn thử hỏi lại nhé!"
 
 
+@observe(name="ta_chatbot_stream")
 def stream_chat(message: str, history: list[dict] = None):
     """
-    Stream phản hồi từ agent (cho Streamlit).
-
-    Args:
-        message: Tin nhắn từ học viên
-        history: Lịch sử hội thoại
-
-    Yields:
-        Từng phần nội dung phản hồi
+    Stream phản hồi từ agent (cho FastAPI/Frontend).
     """
     messages = []
     if history:
@@ -225,16 +216,20 @@ def stream_chat(message: str, history: list[dict] = None):
             messages.append(msg)
     messages.append({"role": "user", "content": message})
 
+    # Gắn metadata vào trace để dễ debug trên Langfuse
+    langfuse_context.update_current_trace(
+        tags=["ta-chatbot", "day13-lab"],
+        metadata={"query_preview": summarize_text(message, max_len=50)}
+    )
+
     try:
         has_output = False
         for event in agent.stream({"messages": messages}, stream_mode="messages"):
             message_chunk, metadata = event
-            # Chỉ yield AI message content (không yield tool calls)
             if isinstance(message_chunk, AIMessage) and message_chunk.content and not message_chunk.tool_calls:
                 has_output = True
                 yield message_chunk.content
         
-        # Nếu không có output nào, trả về thông báo mặc định
         if not has_output:
             yield "Xin lỗi, mình không thể trả lời câu hỏi này. Bạn thử hỏi lại nhé! 🙏"
     
