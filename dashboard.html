@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab13 Observability Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .status-line {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4ade80;
+        }
+        
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 20px;
+            max-width: 2000px;
+            margin: 0 auto;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel h2 {
+            font-size: 16px;
+            color: #667eea;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+        
+        .panel-content {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 250px;
+            position: relative;
+        }
+        
+        .metric {
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        .metric-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .metric-sub {
+            font-size: 14px;
+            color: #666;
+            margin: 5px 0;
+        }
+        
+        .alert-high {
+            color: #ef4444;
+        }
+        
+        .alert-medium {
+            color: #f59e0b;
+        }
+        
+        .alert-good {
+            color: #10b981;
+        }
+        
+        .refresh-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .slo-line {
+            position: absolute;
+            bottom: 20px;
+            font-size: 11px;
+            color: #999;
+        }
+        
+        canvas {
+            max-height: 250px;
+        }
+        
+        .error {
+            color: #ef4444;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #999;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Lab13 Observability Dashboard</h1>
+        <div class="status-line">
+            <div class="status-item">
+                <div class="status-dot"></div>
+                <span>API Status: <strong>Healthy</strong></span>
+            </div>
+            <div class="status-item">
+                <span>Last Update: <strong id="lastUpdate">-</strong></span>
+            </div>
+            <div class="status-item">
+                <span>Auto-Refresh: <strong>Every 20s</strong></span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard">
+        <!-- Panel 1: Latency -->
+        <div class="panel">
+            <h2>⏱️ Latency (ms) - P50 / P95 / P99</h2>
+            <div class="panel-content">
+                <div id="latencyChart"></div>
+                <div id="latencyMetrics" class="error" style="display:none;">Loading...</div>
+            </div>
+            <div class="slo-line">SLO Target: P95 < 200ms</div>
+        </div>
+        
+        <!-- Panel 2: Traffic -->
+        <div class="panel">
+            <h2>📈 Traffic (Total Requests)</h2>
+            <div class="panel-content">
+                <div class="metric">
+                    <div class="metric-label">Request Count</div>
+                    <div class="metric-value" id="trafficValue">0</div>
+                    <div class="metric-sub" id="trafficQps">0 QPS</div>
+                </div>
+            </div>
+            <div class="slo-line">SLO Target: > 100 req/hr</div>
+        </div>
+        
+        <!-- Panel 3: Error Rate -->
+        <div class="panel">
+            <h2>🔴 Error Rate</h2>
+            <div class="panel-content">
+                <div class="metric">
+                    <div class="metric-label">Error Count</div>
+                    <div class="metric-value" id="errorValue">0</div>
+                    <div class="metric-sub" id="errorRate">0% error rate</div>
+                </div>
+            </div>
+            <div class="slo-line">SLO Target: < 1% errors</div>
+        </div>
+        
+        <!-- Panel 4: Cost -->
+        <div class="panel">
+            <h2>💰 Cost (USD)</h2>
+            <div class="panel-content">
+                <div class="metric">
+                    <div class="metric-label">Total Cost</div>
+                    <div class="metric-value" id="costValue">$0.00</div>
+                    <div class="metric-sub" id="costPerReq">$0.00 per req</div>
+                </div>
+            </div>
+            <div class="slo-line">Budget: $100/month</div>
+        </div>
+        
+        <!-- Panel 5: Tokens -->
+        <div class="panel">
+            <h2>🔤 Tokens (Input / Output)</h2>
+            <div class="panel-content">
+                <div id="tokensChart"></div>
+                <div id="tokensMetrics" class="error" style="display:none;">Loading...</div>
+            </div>
+            <div class="slo-line">Avg: ~150 in / ~50 out per req</div>
+        </div>
+        
+        <!-- Panel 6: Quality -->
+        <div class="panel">
+            <h2>⭐ Quality Score</h2>
+            <div class="panel-content">
+                <div class="metric">
+                    <div class="metric-label">Average Quality</div>
+                    <div class="metric-value" id="qualityValue">0.00</div>
+                    <div class="metric-sub" id="qualityBreakdown">Based on answer length & accuracy</div>
+                </div>
+            </div>
+            <div class="slo-line">SLO Target: > 0.75</div>
+        </div>
+    </div>
+    
+    <script>
+        const API_URL = "http://127.0.0.1:8000/metrics";
+        let lastMetrics = null;
+        let startTime = Date.now();
+        
+        // Initialize charts
+        let latencyCtx = null, tokensCtx = null;
+        let latencyChart = null, tokensChart = null;
+        
+        async function fetchMetrics() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error("API Error: " + response.status);
+                return await response.json();
+            } catch (error) {
+                console.error("Failed to fetch metrics:", error);
+                return null;
+            }
+        }
+        
+        function updateLatency(metrics) {
+            const value = document.getElementById("latencyValue");
+            const chartDiv = document.getElementById("latencyChart");
+            
+            if (!latencyCtx) {
+                const canvas = document.createElement("canvas");
+                canvas.id = "latencyChartCanvas";
+                chartDiv.innerHTML = "";
+                chartDiv.appendChild(canvas);
+                latencyCtx = canvas.getContext("2d");
+            }
+            
+            const p50 = metrics.latency_p50 || 0;
+            const p95 = metrics.latency_p95 || 0;
+            const p99 = metrics.latency_p99 || 0;
+            
+            if (latencyChart) {
+                latencyChart.data.datasets[0].data = [p50, p95, p99];
+                latencyChart.update();
+            } else {
+                latencyChart = new Chart(latencyCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['P50', 'P95', 'P99'],
+                        datasets: [{
+                            label: 'Latency (ms)',
+                            data: [p50, p95, p99],
+                            backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                            borderRadius: 4,
+                            borderSkipped: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        indexAxis: 'x',
+                        scales: {
+                            y: { beginAtZero: true }
+                        },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+        }
+        
+        function updateTraffic(metrics) {
+            const traffic = metrics.traffic || 0;
+            const elapsedMin = (Date.now() - startTime) / (1000 * 60);
+            const qps = traffic / (elapsedMin * 60) || 0;
+            
+            document.getElementById("trafficValue").textContent = traffic;
+            document.getElementById("trafficQps").textContent = qps.toFixed(2) + " QPS";
+        }
+        
+        function updateErrors(metrics) {
+            const errorBreakdown = metrics.error_breakdown || {};
+            const errorCount = Object.values(errorBreakdown).reduce((a, b) => a + b, 0) || 0;
+            const traffic = metrics.traffic || 1;
+            const errorRate = ((errorCount / traffic) * 100).toFixed(1);
+            
+            document.getElementById("errorValue").textContent = errorCount;
+            document.getElementById("errorRate").textContent = errorRate + "% error rate";
+        }
+        
+        function updateCost(metrics) {
+            const totalCost = (metrics.total_cost_usd || 0).toFixed(4);
+            const perReq = metrics.traffic > 0 ? (totalCost / metrics.traffic).toFixed(4) : "0.00";
+            
+            document.getElementById("costValue").textContent = "$" + totalCost;
+            document.getElementById("costPerReq").textContent = "$" + perReq + " per req";
+        }
+        
+        function updateTokens(metrics) {
+            const totalIn = metrics.tokens_in_total || 0;
+            const totalOut = metrics.tokens_out_total || 0;
+            
+            const chartDiv = document.getElementById("tokensChart");
+            if (!tokensCtx) {
+                const canvas = document.createElement("canvas");
+                canvas.id = "tokensChartCanvas";
+                chartDiv.innerHTML = "";
+                chartDiv.appendChild(canvas);
+                tokensCtx = canvas.getContext("2d");
+            }
+            
+            if (tokensChart) {
+                tokensChart.data.datasets[0].data = [totalIn, totalOut];
+                tokensChart.update();
+            } else {
+                tokensChart = new Chart(tokensCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Input Tokens', 'Output Tokens'],
+                        datasets: [{
+                            data: [totalIn, totalOut],
+                            backgroundColor: ['#667eea', '#764ba2'],
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom' } }
+                    }
+                });
+            }
+        }
+        
+        function updateQuality(metrics) {
+            const quality = (metrics.quality_avg || 0).toFixed(2);
+            const qualityClass = quality >= 0.75 ? "alert-good" : (quality >= 0.5 ? "alert-medium" : "alert-high");
+            
+            const elem = document.getElementById("qualityValue");
+            elem.textContent = quality;
+            elem.className = "metric-value " + qualityClass;
+        }
+        
+        function updateDashboard() {
+            fetchMetrics().then(metrics => {
+                if (!metrics) {
+                    console.error("No metrics received");
+                    return;
+                }
+                
+                lastMetrics = metrics;
+                updateLatency(metrics);
+                updateTraffic(metrics);
+                updateErrors(metrics);
+                updateCost(metrics);
+                updateTokens(metrics);
+                updateQuality(metrics);
+                
+                document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString();
+            });
+        }
+        
+        // Initial load and set interval
+        updateDashboard();
+        setInterval(updateDashboard, 20000); // Refresh every 20 seconds
+    </script>
+</body>
+</html>
